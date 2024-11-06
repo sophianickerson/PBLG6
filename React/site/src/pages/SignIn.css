@@ -1,0 +1,98 @@
+/* Center the form on the page */
+.sign-in-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #ccb6e5 10%, #ccb6e5 10%);
+  font-family: 'Roboto', sans-serif; /* Use a modern font */
+}
+
+/* Style the form container */
+.sign-in-page form {
+  background-color: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.sign-in-page form:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Style the heading */
+.sign-in-page h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 28px;
+  color: #333;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+/* Style the input fields */
+.sign-in-page form input {
+  margin-bottom: 20px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  background-color: #f9f9f9;
+  transition: border-color 0.3s ease;
+}
+
+.sign-in-page form input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+/* Style the submit button */
+.sign-in-page form button {
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.sign-in-page form button:hover {
+  background-color: #0056b3;
+}
+
+/* Style the labels */
+.sign-in-page form label {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Add a link for "Forgot Password" */
+.sign-in-page .forgot-password {
+  text-align: right;
+  font-size: 14px;
+  color: #007bff;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.sign-in-page .forgot-password:hover {
+  text-decoration: underline;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+  .sign-in-page form {
+      width: 95%;
+      padding: 25px;
+  }
+}
