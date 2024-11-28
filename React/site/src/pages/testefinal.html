@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movimento com Fundo de Céu</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="tela" width="600" height="1200"></canvas>
+    <script>
+        const larguraTela = 600;
+        const alturaTela = 1200;
+        const tela = document.getElementById('tela');
+        const ctx = tela.getContext('2d');
+
+        const fundoUrl = 'imagens//fundo.jpg';
+        const imagemUrl = 'imagens//objeto.png';
+        const fundo = new Image();
+        fundo.src = fundoUrl;
+        const imagem = new Image();
+        imagem.src = imagemUrl;
+
+        const objetoPosX = larguraTela / 2;
+        let objetoPosY = alturaTela - 50;
+        const objetoTamanho = 200;
+
+        const graficoIntensidade = Array.from({length: 100}, () => Math.floor(Math.random() * 1000));
+        let indiceTempo = 0;
+        let movimentoAtivo = true;
+
+        function atualizarTela() {
+            if (fundo.complete) {
+                ctx.drawImage(fundo, 0, 0, larguraTela, alturaTela);
+            }
+
+            if (indiceTempo < graficoIntensidade.length) {
+                const intensidadeSinal = graficoIntensidade[indiceTempo];
+                if (indiceTempo > 0) {
+                    if (intensidadeSinal > graficoIntensidade[indiceTempo - 1]) {
+                        objetoPosY -= 5; // Move para cima
+                    } else if (intensidadeSinal < graficoIntensidade[indiceTempo - 1]) {
+                        objetoPosY += 5; // Move para baixo
+                    }
+                }
+
+                // Verificações de limite
+                if (objetoPosY < 0) {
+                    objetoPosY = 0; // Limita o topo
+                } else if (objetoPosY + objetoTamanho > alturaTela) {
+                    objetoPosY = alturaTela - objetoTamanho; // Limita o fundo
+                }
+
+                indiceTempo++;
+            } else {
+                movimentoAtivo = false;
+                console.log(`Posição final do objeto: ${objetoPosY}`);
+            }
+
+            if (imagem.complete) {
+                ctx.drawImage(imagem, objetoPosX - objetoTamanho / 2, objetoPosY, objetoTamanho, objetoTamanho);
+            }
+
+            if (movimentoAtivo) {
+                requestAnimationFrame(atualizarTela);
+            }
+        }
+
+        fundo.onload = () => {
+            imagem.onload = atualizarTela;
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+/* Ajuste no container principal */
+#outer-container {
+    position: relative;
+    height: 100%;
+}
+
+#page-wrap {
+    margin-left: 0px; /* Reseta a margem ao fechar o menu */
+    padding: 20px;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Menu lateral */
+.bm-menu {
+    background: #ADD8E6; /* Cor de fundo azul */
+    padding: 2.5em 1.5em 0; /* Espaçamento interno */
+    font-size: 1.15em; /* Tamanho da fonte */
+}
+
+/* Links do menu */
+.bm-item-list {
+    color: rgb(0, 0, 0); /* Cor dos textos */
+    padding: 0;
+    list-style: none;
+}
+
+.bm-item-list a {
+    text-decoration: none;
+    color: rgb(0, 0, 0); /* Cor do link */
+    margin-bottom: 15px; /* Espaçamento entre links */
+    display: block; /* Para que cada link ocupe uma linha */
+    font-weight: bold; /* Texto em negrito */
+    font-size: 1.2em;
+    transition: color 0.3s ease-in-out; /* Transição suave para hover */
+}
+
+.bm-item-list a:hover {
+    color: #ffffff; /* Cor dos links ao passar o mouse */
+}
+
+/* Botão para fechar o menu */
+.bm-cross-button {
+    height: 24px;
+    width: 24px;
+}
+
+.bm-cross {
+    background: rgb(0, 0, 0); /* Cor do "X" de fechar */
+}
+
+/* Barra do botão hamburguer */
+.bm-burger-button {
+    position: fixed;
+    width: 36px;
+    height: 30px;
+    left: 15px;
+    top: 15px;
+}
+
+.bm-overlay {
+    background: rgba(0, 0, 0, 0.5); /* Cor do overlay com transparência */
+}

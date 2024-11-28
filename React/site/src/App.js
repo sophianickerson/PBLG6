@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import SignIn from './pages/SignIn';
 import Pacientes from './pages/pacientes';
 import PacienteData from './pages/pacientedata';
+import Historico from './pages/Historico'; // Import the new Historico page
+import Relatorio from './pages/Relatorio'; // Import the new Relatorio page
 import ProtectedRoute from './pages/ProtectedRoute';
 
 function App() {
@@ -12,25 +14,42 @@ function App() {
         {/* SignIn page as the default route */}
         <Route path="/" element={<SignIn />} />
 
-        {/* Wrap the Protected Routes */}
+        {/* Protected Routes for Pacientes */}
         <Route
           path="/pacientes"
           element={
             <ProtectedRoute>
-              {/* You can wrap routes in a React Fragment instead of a div */}
-              <React.Fragment>
-                <Pacientes />
-              </React.Fragment>
+              <Pacientes />
             </ProtectedRoute>
           }
         />
 
-        {/* Dynamic route for individual patient data */}
+        {/* Protected Routes for Individual Patient Data */}
         <Route
           path="/pacientes/:id"
           element={
             <ProtectedRoute>
               <PacienteData />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Protected Route for Patient's Histórico */}
+        <Route
+          path="/pacientes/:id/historico"
+          element={
+            <ProtectedRoute>
+              <Historico />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Protected Route for Patient's Relatório */}
+        <Route
+          path="/pacientes/:id/relatorio"
+          element={
+            <ProtectedRoute>
+              <Relatorio />
             </ProtectedRoute>
           }
         />

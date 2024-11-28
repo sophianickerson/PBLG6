@@ -1,32 +1,101 @@
-.paciente-list {
+/* General Reset */
+body, html {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+/* Layout principal do Dashboard */
+.dashboard-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
 }
 
-.paciente-card {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
+/* Header */
+.dashboard-header {
+    background-color: #007bff;
+    color: white;
+    padding: 15px 20px;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* Conteúdo principal */
+.main-content {
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    gap: 20px; /* Adds spacing between sections */
     padding: 20px;
-    width: 300px;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.paciente-card h3 {
-    margin-top: 0;
+/* Gráficos */
+.graph-section {
+    flex: 1; /* Makes this section take up equal space */
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.paciente-card p {
-    margin: 5px 0;
-    font-size: 14px;
+.graph-section h3 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
 }
 
-/* Add styles for the chart */
-canvas#myChart {
-    width: 100% !important;
+/* Jogo */
+.game-section {
+    flex: 1; /* Makes this section take up equal space */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.canvas-game {
+    border: 1px solid #fff;
+    width: 100%;
     max-width: 600px;
-    height: auto !important;
-    margin: 0 auto;
-    display: block;
+    height: auto;
+}
+
+.game-controls {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+}
+
+.game-controls button {
+    margin: 0 5px;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
+.game-controls button:hover {
+    background-color: #0056b3;
+}
+
+/* Velocímetro */
+.gauge-container {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
 }

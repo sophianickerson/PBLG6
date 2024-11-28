@@ -1,0 +1,24 @@
+# Ignorar node_modules
+node_modules/
+
+# Ignorar ambientes virtuais
+env/
+
+# Ignorar arquivos de sistema do macOS
+.DS_Store
+
+# Ignorar arquivos Python compilados
+__pycache__/
+
+# Ignorar logs e arquivos temporários
+*.log
+*.tmp
+*.swp
+
+# Ignorar pacotes do React e cache do NPM
+React/site/node_modules/
+package-lock.json
+yarn.lock
+
+# Ignorar public/uploads no React
+React/site/public/uploads/

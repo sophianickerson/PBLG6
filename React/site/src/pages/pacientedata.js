@@ -1,161 +1,369 @@
-import React, { useState, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
-import { Chart, registerables } from 'chart.js';
-import confetti from 'canvas-confetti';
+import React, { useEffect, useState, useRef } from "react";
+import { Line } from "react-chartjs-2";
+import { Chart, registerables } from "chart.js";
+import confetti from "canvas-confetti";
+import { useParams } from "react-router-dom";
+import { RadialGauge } from "canvas-gauges"; // Importando o velocímetro
+import Burger from "./Burger";
+import Menu from "./Menu";
+import "./menu.css";
+import "./pacientedata.css";
 
 Chart.register(...registerables);
 
-const PacienteData = () => {
-  const [emgData, setEmgData] = useState([]);
-  const [forceData, setForceData] = useState([]);
-  const [blockPosition, setBlockPosition] = useState(300); // Posição inicial do bloco
-  const [isGameActive, setIsGameActive] = useState(true); // Controle do estado do jogo
+const DashboardGame = () => {
+  const { id } = useParams(); // Captura o ID do paciente da URL
+  const [isGameActive, setIsGameActive] = useState(false);
+  const [webSocket, setWebSocket] = useState(null); // WebSocket para comunicação
+  const [forceData, setForceData] = useState([]); // Dados do gráfico de extensão
+  const [emgData, setEmgData] = useState([]); // Dados do gráfico de EMG
+  const [timeStamps, setTimeStamps] = useState([]); // Eixo X (tempo)
+  const [session_id, setSessionId] = useState(null); // ID da sessão atual no Firebase
+  const [menuOpen, setMenuOpen] = useState(false); // Controle do menu lateral
+  const [patientName, setPatientName] = useState(""); // Nome do paciente
 
-  // Configuração do gráfico de EMG
-  const emgChartData = {
-    labels: emgData.map((_, index) => index),
-    datasets: [
+  const canvasRef = useRef(null);
+  const gaugeRef = useRef(null); // Referência ao velocímetro
+
+  const larguraTela = window.innerWidth / 2; // Metade direita da tela
+  const alturaTela = 750; // Altura fixa do canvas
+  const objetoPosY = useRef(alturaTela); // Posição inicial do foguete
+  const objetoTamanho = 200;
+
+  const normalizeValue = (value) => {
+    return alturaTela - (alturaTela * ((value - 0.2) / (1.0 - 0.5))); // Normaliza valores de 0.5V a 1.0V
+  };
+
+  useEffect(() => {
+    if (!isGameActive || !id || !session_id) return;
+
+    const socket = new WebSocket(`ws://localhost:8000/ws/${id}`);
+    setWebSocket(socket);
+
+    socket.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+      const { flex, emg } = data;
+  
+      const time = new Date().toISOString();
+  
+      const dataToSave = {
+          flex_measurement: flex,
+          emg_measurement: emg,
+          time_of_reading: time,
+      };
+  
+      try {
+          await saveDataToFirebase(id, session_id, dataToSave); // Use await for saving data
+      } catch (error) {
+          console.error("Error saving data:", error);
+      }
+  
+      // Update the graph data and rocket position
+      setForceData((prev) => [...prev.slice(-50), flex]);
+      setEmgData((prev) => [...prev.slice(-50), emg]);
+      setTimeStamps((prev) => [...prev.slice(-50), time]);
+  
+      if (gaugeRef.current) {
+          gaugeRef.current.value = flex;
+      }
+  
+      const targetY = normalizeValue(flex);
+      objetoPosY.current += (targetY - objetoPosY.current) * 0.1; // Smooth movement of the rocket
+  };  
+
+    socket.onclose = () => console.log("WebSocket closed");
+
+    return () => {
+      socket.close();
+    };
+  }, [isGameActive, id, session_id]);
+
+  const saveDataToFirebase = async (id, session_id, data) => {
+    try {
+      const response = await fetch(`http://localhost:8000/save-sensor-data/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+              session_id,
+              ...data,
+          }),
+      });
+
+      if (!response.ok) {
+          throw new Error("Failed to save data");
+      }
+
+      console.log("Data saved successfully!");
+  } catch (error) {
+      console.error("Error saving data to backend:", error);
+  }
+    fetch(
+      `https://mango-ced7f-default-rtdb.firebaseio.com/patients/${id}/sensor_data/${session_id}.json`,
       {
-        label: 'EMG Data',
-        data: emgData,
-        borderColor: 'rgba(75,192,192,1)',
-        borderWidth: 2,
-        fill: false,
-      },
-    ],
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }
+    )
+      .then((response) => {
+        if (response.ok) {
+          console.log("Data saved successfully!");
+        } else {
+          console.error("Error saving data.");
+        }
+      })
+      .catch((error) => {
+        console.error("Error saving data to Firebase:", error);
+      });
   };
 
-  // Configuração do gráfico de Força
-  const forceChartData = {
-    labels: forceData.map((_, index) => index),
-    datasets: [
-      {
-        label: 'Force Data',
-        data: forceData,
-        borderColor: 'rgba(255,99,132,1)',
-        backgroundColor: 'rgba(255,99,132,0.2)',
-        borderWidth: 2,
-        fill: true, // Preenchido embaixo da linha
-      },
-    ],
+  const triggerConfetti = () => {
+    confetti({
+      particleCount: 350,
+      spread: 100,
+      origin: { x: 0.75, y: 0.5 },
+      resize: true,
+      useWorker: true,
+    });
   };
 
-  // Opções dos gráficos
-  const chartOptions = {
-    responsive: true,
-    scales: {
-      x: {
-        type: 'linear',
-        title: {
-          display: true,
-          text: 'Tempo',
-        },
-      },
-      y: {
-        title: {
-          display: true,
-          text: 'Amplitude do Sinal',
-        },
-      },
-    },
-  };
+  useEffect(() => {
+    const fetchPatientName = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:8000/pacientes/${id}`
+        );
+        const data = await response.json();
 
-  // Função para simular dados de força aleatórios
+        if (data && data.nome) {
+          setPatientName(data.nome); // Set the patient's name
+        } else {
+          setPatientName("Nome não encontrado"); // Fallback if "nome" is not found
+        }
+      } catch (error) {
+        console.error("Error fetching patient data:", error);
+        setPatientName("Erro ao buscar nome");
+      }
+    };
+
+    fetchPatientName();
+  }, [id]);
+
   useEffect(() => {
     if (!isGameActive) return;
 
-    const interval = setInterval(() => {
-      const randomForceValue = Math.floor(Math.random() * 50); // Valor aleatório entre 0 e 50
-      setForceData((prevData) => [...prevData.slice(-50), randomForceValue]);
-      updateBlockPosition(randomForceValue); // Atualiza a posição do bloco com o valor aleatório
-    }, 500); // Atualiza a cada 500ms
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
 
-    // Parar o jogo após 30 segundos
-    const timeout = setTimeout(() => {
-      setIsGameActive(false); // Para o jogo
-      clearInterval(interval); // Limpa o intervalo de atualização de dados
+    const fundo = new Image();
+    fundo.src = "/imagens/fundo.jpg";
 
-      // Ativa os confetes quando o jogo termina
-      showConfetti();
-    }, 10000); // 30000 ms = 30 segundos
+    const objeto = new Image();
+    objeto.src = "/imagens/objeto.png";
+
+    const fantasma = new Image();
+    fantasma.src = '/imagens/fantasma.png'
+
+    const atualizarTela = () => {
+      ctx.clearRect(0, 0, larguraTela, alturaTela);
+
+      if (fundo.complete) {
+        ctx.drawImage(fundo, 0, 0, larguraTela, alturaTela);
+      }
+
+      // Draw the rocket at the updated position
+      if (objeto.complete) {
+        ctx.drawImage(
+          objeto,
+          larguraTela / 2 - objetoTamanho / 2,
+          objetoPosY.current,
+          objetoTamanho,
+          objetoTamanho
+        );
+      }
+
+      if (isGameActive) {
+        requestAnimationFrame(atualizarTela);
+      }
+    };
+
+    fundo.onload = () => {
+      objeto.onload = atualizarTela;
+    };
 
     return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    }; // Limpa o intervalo e o timeout ao desmontar o componente
-  }, [isGameActive]);
+      ctx.clearRect(0, 0, larguraTela, alturaTela);
+    };
+  }, [isGameActive, larguraTela]);
 
-  // Função para atualizar a posição do bloco com base no valor de força simulada
-  const updateBlockPosition = (forceValue) => {
-    setBlockPosition(300 + forceValue * 2); // Ajusta a multiplicação conforme necessário para o efeito desejado
+  useEffect(() => {
+    // Configura o velocímetro ao montar o componente
+    gaugeRef.current = new RadialGauge({
+      renderTo: "gaugeCanvas",
+      width: 150,
+      height: 150,
+      units: "Voltage (V)",
+      minValue: 0.5,
+      maxValue: 0.75,
+      majorTicks: ["0.5", "0.6", "0.7", "0.8", "0.9", "1.0"],
+      minorTicks: 5,
+      strokeTicks: true,
+      colorPlate: "#fff",
+      needleType: "arrow",
+      needleWidth: 2,
+      animationDuration: 50,
+    }).draw();
+  }, []);
+
+  const handleStartGame = () => {
+    if (!session_id) {
+      const newSessionId = new Date().toISOString().replace(/:/g, "-"); // Generate a unique session ID
+      setSessionId(newSessionId); // Save the sessionId in state
+    }
+    setIsGameActive(true); // Start the game
   };
-
-  // Função para exibir confetes e estrelas
-  const showConfetti = () => {
-    const duration = 3 * 1000; // Duração dos confetes
-    const end = Date.now() + duration;
-
-    (function frame() {
-      confetti({
-        particleCount: 7,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-      });
-      confetti({
-        particleCount: 7,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    })();
+  
+  const handleEndGame = () => {
+    setIsGameActive(false);
+    if (webSocket) {
+      webSocket.close();
+      console.log("WebSocket connection closed.");
+    }
+    triggerConfetti(); // Trigger confetti when game stops
   };
 
   return (
-    <div>
-      <h2>Dados do Paciente</h2>
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-        {/* Gráfico de EMG */}
-        <div style={{ width: '48%', height: '400px' }}>
-          <Line data={emgChartData} options={chartOptions} />
-        </div>
-        {/* Gráfico de Força */}
-        <div style={{ width: '48%', height: '400px' }}>
-          <Line data={forceChartData} options={chartOptions} />
-        </div>
-      </div>
-      
-      {/* Jogo interativo */}
-      <div style={{ marginTop: '20px', textAlign: 'center' }}>
-        <h3>Jogo Interativo de Progresso</h3>
-        <div
+    <div id="outer-container">
+      {/* Menu Component with open state controlled by Burger */}
+      <Menu
+        open={menuOpen}
+        setOpen={setMenuOpen}
+        pageWrapId={"page-wrap"}
+        outerContainerId={"outer-container"}
+      />
+
+      <main id="page-wrap" style={{ padding: "10px" }}>
+        <header
           style={{
-            position: 'relative',
-            width: '100%',
-            height: '50px',
-            backgroundColor: '#f0f0f0',
-            border: '1px solid #ddd',
+            backgroundColor: "#ADD8E6",
+            color: "black",
+            padding: "12px",
+            fontSize: "20px",
+            fontWeight: "bold",
+            textAlign: "center",
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              left: `${blockPosition}px`,
-              width: '50px',
-              height: '50px',
-              backgroundColor: isGameActive ? '#007bff' : '#ccc', // Mudança de cor quando o jogo para
-              transition: 'left 0.1s',
-            }}
-          ></div>
+          Dashboard - {patientName}
+        </header>
+
+        <div style={{ marginRight: "10px" }}>
+          {/* Burger Menu Button */}
+          <div style={{ zIndex: 10 }}>
+            <Burger open={menuOpen} setOpen={setMenuOpen} />
+          </div>
         </div>
-        {!isGameActive && <p>O jogo terminou após 30 segundos.</p>}
-      </div>
+
+        <div style={{ display: "flex", height: "100vh" }}>
+          {/* Gráficos */}
+          <div style={{ width: "50%", padding: "10px" }}>
+            <h3>Dados de Flexão</h3>
+            <Line
+              data={{
+                labels: timeStamps,
+                datasets: [
+                  {
+                    label: "Flex Sensor Data",
+                    data: forceData.map ((voltage) => 400 * voltage -100),
+                    borderColor: "rgba(75,192,192,1)",
+                    backgroundColor: "rgba(75,192,192,0.2)",
+                    borderWidth: 2,
+                    fill: true,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                scales: {
+                  x: { title: { display: true, text: "Tempo (s)" } },
+                  y: { title: { display: true, text: "Amplitude (°)" } },
+                },
+              }}
+            />
+            <h3>Dados de EMG</h3>
+            <Line
+              data={{
+                labels: timeStamps,
+                datasets: [
+                  {
+                    label: "EMG Data",
+                    data: emgData,
+                    borderColor: "rgba(255,99,132,1)",
+                    backgroundColor: "rgba(255,99,132,0.2)",
+                    borderWidth: 2,
+                    fill: true,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                scales: {
+                  x: { title: { display: true, text: "Tempo (s)" } },
+                  y: { title: { display: true, text: "Voltagem (V)" } },
+                },
+              }}
+            />
+          </div>
+
+          {/* Jogo */}
+          <div style={{ width: "50%", position: "relative" }}>
+            {/* Botões */}
+            <div
+              style={{
+                position: "absolute",
+                top: "10px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 10,
+              }}
+            >
+              <button
+                onClick={handleStartGame}
+                disabled={isGameActive}
+                style={{ marginRight: "10px" }}
+              >
+                Start 
+              </button>
+              <button onClick={handleEndGame} disabled={!isGameActive}>
+                End 
+              </button>
+            </div>
+
+            {/* Canvas do Jogo */}
+            <canvas
+              ref={canvasRef}
+              width={larguraTela}
+              height={alturaTela}
+              style={{
+                display: "block",
+                border: "1px solid black",
+                margin: "0 auto",
+              }}
+            ></canvas>
+
+            <div
+              style={{
+                position: "absolute",
+                bottom: "20px",
+                right: "20px",
+              }}
+            >
+              <canvas id="gaugeCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
 
-export default PacienteData;
+export default DashboardGame;
