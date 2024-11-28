@@ -3,7 +3,6 @@ import { Line } from "react-chartjs-2";
 import { Chart, registerables } from "chart.js";
 import confetti from "canvas-confetti";
 import { useParams } from "react-router-dom";
-import { RadialGauge } from "canvas-gauges"; // Importando o velocímetro
 import Burger from "./Burger";
 import Menu from "./Menu";
 import "./menu.css";
@@ -23,12 +22,12 @@ const DashboardGame = () => {
   const [patientName, setPatientName] = useState(""); // Nome do paciente
 
   const canvasRef = useRef(null);
-  const gaugeRef = useRef(null); // Referência ao velocímetro
 
   const larguraTela = window.innerWidth / 2; // Metade direita da tela
   const alturaTela = 750; // Altura fixa do canvas
   const objetoPosY = useRef(alturaTela); // Posição inicial do foguete
   const objetoTamanho = 200;
+  const objetoFantasmaPosY = useRef(null); // Posição do fantasma (imagem transparente)
 
   const normalizeValue = (value) => {
     return alturaTela - (alturaTela * ((value - 0.2) / (1.0 - 0.5))); // Normaliza valores de 0.5V a 1.0V
@@ -63,13 +62,14 @@ const DashboardGame = () => {
       setEmgData((prev) => [...prev.slice(-50), emg]);
       setTimeStamps((prev) => [...prev.slice(-50), time]);
   
-      if (gaugeRef.current) {
-          gaugeRef.current.value = flex;
-      }
-  
       const targetY = normalizeValue(flex);
       objetoPosY.current += (targetY - objetoPosY.current) * 0.1; // Smooth movement of the rocket
-  };  
+  
+      // Atualiza a posição do fantasma se o foguete alcançar uma posição mais alta
+      if (objetoFantasmaPosY.current === null || objetoPosY.current < objetoFantasmaPosY.current) {
+        objetoFantasmaPosY.current = objetoPosY.current;
+      }
+  };
 
     socket.onclose = () => console.log("WebSocket closed");
 
@@ -81,12 +81,12 @@ const DashboardGame = () => {
   const saveDataToFirebase = async (id, session_id, data) => {
     try {
       const response = await fetch(`http://localhost:8000/save-sensor-data/${id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-              session_id,
-              ...data,
-          }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            session_id,
+            ...data,
+        }),
       });
 
       if (!response.ok) {
@@ -94,9 +94,10 @@ const DashboardGame = () => {
       }
 
       console.log("Data saved successfully!");
-  } catch (error) {
+    } catch (error) {
       console.error("Error saving data to backend:", error);
-  }
+    }
+    
     fetch(
       `https://mango-ced7f-default-rtdb.firebaseio.com/patients/${id}/sensor_data/${session_id}.json`,
       {
@@ -130,9 +131,7 @@ const DashboardGame = () => {
   useEffect(() => {
     const fetchPatientName = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:8000/pacientes/${id}`
-        );
+        const response = await fetch(`http://localhost:8000/pacientes/${id}`);
         const data = await response.json();
 
         if (data && data.nome) {
@@ -162,7 +161,7 @@ const DashboardGame = () => {
     objeto.src = "/imagens/objeto.png";
 
     const fantasma = new Image();
-    fantasma.src = '/imagens/fantasma.png'
+    fantasma.src = "/imagens/fantasma.png"; // A imagem do fantasma é carregada aqui
 
     const atualizarTela = () => {
       ctx.clearRect(0, 0, larguraTela, alturaTela);
@@ -182,6 +181,17 @@ const DashboardGame = () => {
         );
       }
 
+      // Desenho da imagem fantasma se a posição foi definida
+      if (fantasma.complete && objetoFantasmaPosY.current !== null) {
+        ctx.drawImage(
+          fantasma,
+          larguraTela / 2 - objetoTamanho / 2,
+          objetoFantasmaPosY.current,
+          objetoTamanho,
+          objetoTamanho
+        );
+      }
+
       if (isGameActive) {
         requestAnimationFrame(atualizarTela);
       }
@@ -196,25 +206,6 @@ const DashboardGame = () => {
     };
   }, [isGameActive, larguraTela]);
 
-  useEffect(() => {
-    // Configura o velocímetro ao montar o componente
-    gaugeRef.current = new RadialGauge({
-      renderTo: "gaugeCanvas",
-      width: 150,
-      height: 150,
-      units: "Voltage (V)",
-      minValue: 0.5,
-      maxValue: 0.75,
-      majorTicks: ["0.5", "0.6", "0.7", "0.8", "0.9", "1.0"],
-      minorTicks: 5,
-      strokeTicks: true,
-      colorPlate: "#fff",
-      needleType: "arrow",
-      needleWidth: 2,
-      animationDuration: 50,
-    }).draw();
-  }, []);
-
   const handleStartGame = () => {
     if (!session_id) {
       const newSessionId = new Date().toISOString().replace(/:/g, "-"); // Generate a unique session ID
@@ -222,7 +213,7 @@ const DashboardGame = () => {
     }
     setIsGameActive(true); // Start the game
   };
-  
+
   const handleEndGame = () => {
     setIsGameActive(false);
     if (webSocket) {
@@ -263,102 +254,72 @@ const DashboardGame = () => {
           </div>
         </div>
 
-        <div style={{ display: "flex", height: "100vh" }}>
+        <div style={{ display: "flex" }}>
           {/* Gráficos */}
-          <div style={{ width: "50%", padding: "10px" }}>
-            <h3>Dados de Flexão</h3>
+          <div style={{ width: "50%", padding: "10px", display: "flex", flexDirection: "column" }}>
+            <h3>Flexão</h3>
             <Line
               data={{
                 labels: timeStamps,
                 datasets: [
                   {
-                    label: "Flex Sensor Data",
-                    data: forceData.map ((voltage) => 400 * voltage -100),
-                    borderColor: "rgba(75,192,192,1)",
-                    backgroundColor: "rgba(75,192,192,0.2)",
-                    borderWidth: 2,
-                    fill: true,
+                    label: "Flexão",
+                    data: forceData,
+                    fill: false,
+                    borderColor: "rgb(75, 192, 192)",
+                    tension: 0.1,
                   },
                 ],
               }}
               options={{
                 responsive: true,
-                scales: {
-                  x: { title: { display: true, text: "Tempo (s)" } },
-                  y: { title: { display: true, text: "Amplitude (°)" } },
+                plugins: {
+                  legend: {
+                    position: "top",
+                  },
                 },
               }}
             />
-            <h3>Dados de EMG</h3>
+            <h3>EMG</h3>
             <Line
               data={{
                 labels: timeStamps,
                 datasets: [
                   {
-                    label: "EMG Data",
+                    label: "EMG",
                     data: emgData,
-                    borderColor: "rgba(255,99,132,1)",
-                    backgroundColor: "rgba(255,99,132,0.2)",
-                    borderWidth: 2,
-                    fill: true,
+                    fill: false,
+                    borderColor: "rgb(153, 102, 255)",
+                    tension: 0.1,
                   },
                 ],
               }}
               options={{
                 responsive: true,
-                scales: {
-                  x: { title: { display: true, text: "Tempo (s)" } },
-                  y: { title: { display: true, text: "Voltagem (V)" } },
+                plugins: {
+                  legend: {
+                    position: "top",
+                  },
                 },
               }}
             />
           </div>
 
           {/* Jogo */}
-          <div style={{ width: "50%", position: "relative" }}>
-            {/* Botões */}
-            <div
-              style={{
-                position: "absolute",
-                top: "10px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 10,
-              }}
-            >
-              <button
-                onClick={handleStartGame}
-                disabled={isGameActive}
-                style={{ marginRight: "10px" }}
-              >
-                Start 
-              </button>
-              <button onClick={handleEndGame} disabled={!isGameActive}>
-                End 
-              </button>
-            </div>
-
-            {/* Canvas do Jogo */}
+          <div style={{ width: "50%", padding: "10px", textAlign: "center" }}>
+            <button onClick={handleStartGame} style={{ marginRight: "10px" }}>
+              Iniciar
+            </button>
+            <button onClick={handleEndGame}>Parar</button>
             <canvas
               ref={canvasRef}
               width={larguraTela}
               height={alturaTela}
               style={{
-                display: "block",
-                border: "1px solid black",
-                margin: "0 auto",
+                border: "2px solid #000",
+                marginTop: "20px",
               }}
-            ></canvas>
-
-            <div
-              style={{
-                position: "absolute",
-                bottom: "20px",
-                right: "20px",
-              }}
-            >
-              <canvas id="gaugeCanvas"></canvas>
-            </div>
+            />
           </div>
         </div>
       </main>
